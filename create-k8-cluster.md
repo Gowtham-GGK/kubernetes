@@ -141,7 +141,7 @@
 
   - For example we use below command to get status of node. we pass kubeconfig file to authenticate
 
-      ```
+      ```shell
       sudo kubectl get node --kubeconfig /etc/kubernetes/admin.conf
       ```
 
@@ -151,7 +151,86 @@
 
     Now we can kubectl commands without sudo and --kubeconfig flag
 
-      ```
+      ```shell
       kubectl get node
       ```
 
+### 1.6 Namespaces
+
+- In Kubernetes, namespaces provides a mechanism for isolating groups of resources within a single cluster. Names of resources need to be unique within a namespace, but not across namespaces. Namespace-based scoping is applicable only for namespaced objects (e.g. Deployments, Services, etc) and not for cluster-wide objects (e.g. StorageClass, Nodes, PersistentVolumes, etc).
+
+  > Why we need Namespaces?
+  >  - Resources grouped in namespace
+  >  - Conflicts: Many teams, same application
+  > - Resource sharing: staging and development
+  >  - Access and Resource limits on namespaces
+
+- By default we get four namespaces kube-system, kube-public,kube-node-lease, default. 
+
+  ```shell
+  kubectl get namespace
+  ```
+
+- kubectl fetches all pods from **default** namespace by default. if we want to fetch any other namespace details
+
+  ```shell
+  kubectl get ns -n kube-system
+  ```
+
+### 1.7 Container Network Interface(CNI)
+
+  - For Pod to Pod communication, there is no builtin solution provided by kubernetes. Instead it creates an Interface. so whatever plugin implements this interface can be used in k8 cluster.
+
+    > Requirements for CNI plugins
+    > - Every pod gets its own unique IP addr 
+    > - Pods on same node can communicate each other usig that IP addr
+    > - Pods on different nodes can communicate each other usig that IP addr without NAT(Network Address Translation)
+
+  - There are many CNI plugins available in market, we use **weavenet** 
+
+  - Pods will get their own private network and its own IP address rane or CIDR block for each node. so pods within node can communicate with that IP address
+
+    > IP Address range or CIDR block provided by CNI plugins should not overlap with cluster VPC IP Address range or CIDR block 
+
+  - CNI plugins like **weavenet** are deployed as pods in all nodes. They form a group and can directly talk to each other. so pods from different node can communicate with this plugins.
+
+  #### Installation
+
+  - To install weavenet , its a single line command. It will download the manifest file required to deploy it as pod.
+
+    ```shell
+    kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+    ```
+
+  - Instead we can download manifest in our cluster and apply manually. to download it use below command
+
+
+    ```shell
+    wget "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')" -o weave.yml
+    ```
+
+  - you can customize this file, like changing default CIDR block or changing port it runs on. After you customize your cahnges. Now we can install CNI pligin
+
+    ```shell
+    kubectl apply -f <file_path>.yaml
+    ```
+
+    Now our master node and core-DNS pod should be in ready state, so check statsu of then
+
+    ```shell
+    kubectl get node
+
+    kubectl get pod -n kube-system
+    ```
+
+  - To check detailed information about any pod
+
+    ```shell
+    kubectl describe <name-of-pod> -n <namespace-name>
+    ```
+  
+  - To get all list of pods with details like IP Address and which node it is running
+
+    ```shell
+    kubectl get node -n <namespace> -o wide
+    ```

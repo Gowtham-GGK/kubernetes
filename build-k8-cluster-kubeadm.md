@@ -73,11 +73,11 @@
       
       - why beacuse k8 scheduler determines best available node on which to deploy newly created pods. if memory swapping is allowd, it will lead to performance and stability issues in kubernetes. 
 
-      > **SWAPPING** Memory swapping is a computer technology that enables an operating system to provide more memory to a running application or process than is available in physical random access memory (RAM). When the physical system memory is exhausted, the operating system can opt to make use of memory swapping techniques to get additional memory
+        > **SWAPPING** Memory swapping is a computer technology that enables an operating system to provide more memory to a running application or process than is available in physical random access memory (RAM). When the physical system memory is exhausted, the operating system can opt to make use of memory swapping techniques to get additional memory
 
-      ```shell
-      sudo swapoff -a
-      ```
+        ```shell
+        sudo swapoff -a
+        ```
     </p>
     </details>
 
@@ -234,3 +234,71 @@
     ```shell
     kubectl get node -n <namespace> -o wide
     ```
+
+### 1.8 Join Worker nodes to cluster
+
+  Now everything is ready, but we have one node cluster. lets join worker nodes to cluster.
+
+  - Note that we already installed containerd, kubeadm, kubelet, kubectl on our two nodes. To join worker nodes to cluster, we need to run a command which was generated while running ***kubeadm init*** command
+
+  - If we don't have that we can get that command by executing below command in master
+
+    ```shell
+    kubeadm token create --print-join-command
+
+    output: kubeadm join <ipaddress:port> --token <token> --discovery-token-ca-cert-hash <hash>
+    ```
+
+  - Run above command generated in the output on our worker nodes. This will join worker nodes with cluster (use sudo)
+
+    ```shell
+    sudo kubeadm join <ipaddress:port> --token <token> --discovery-token-ca-cert-hash <hash>
+    ```
+
+  - In Background, kubelet will schedule pods if needed without our involvement. Check status of node and pods in master
+
+    ```shell
+    kubectl get node -o wide
+
+    kubectl get pod -A -o wide
+    ```
+
+    > kube-proxy and weavenet pods will be scheduled automatically in worker nodes as they are daemon sets. Daemon sets will schedule a pod in each single node in a cluster.
+
+  - so after this the weave-net in all nodes should communicate to each other. lets check that out
+
+    ```shell
+    kubectl get pod -A -o wide | grep weave-net
+
+    kubectl logs <weave-net-pod-name> -n kube-system -c weave
+    ```
+
+  - you can see some errors, as weave-net is unable to connect to other worker nodes and master node in port **6783**. This happens because port **6783** is not opened on any of our nodes. To rectify it just open this port. refer 1.3 for opening port in AWS instances.
+
+  - Now check the logs in all nodes
+
+    ```shell
+    kubectl get pod -A -o wide | grep weave-net
+
+    kubectl logs <weave-net-pod-name> -n kube-system -c weave
+    ```
+
+  - To check the status of weave-net and whether they discovered each other
+
+    ```shell
+    kubectl get pod -n kube-system -o wide | grep weave-net
+
+    kubectl exec -n kube-system <weave-pod-name> -c weave -- /home/weave/weave --local status
+    ```
+
+### 1.9 Deploy Test Application
+
+  - Now everything is ready and weave-net also communicating with each other. we can test by deploying some applicationns
+
+    ```shell
+    kubectl run <pod-name> --image=<image-name>
+
+    kubectl get pod -o wide
+    ```
+
+    Check where it is scheduled, IP address of pod e.t.c.,

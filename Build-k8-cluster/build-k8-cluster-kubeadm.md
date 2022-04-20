@@ -5,7 +5,7 @@
 
 ### 1.1 Create Instances
 
-  - Create instances (1 master & 2 workers) in AWS with below
+  - Create instances (1 master & 2 workers) in AWS with below config.
     - Ubuntu 
     - t2.medium
 
